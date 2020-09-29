@@ -70,13 +70,20 @@ The `assets` component of `capistrano-monorepo` solves this by doing two things:
 In your `deploy/<stage>.rb` file, add the following:
 
 ```
-# This is the path within the deployment target where you want to deploy the
-# assets directory. For a Rails app, this will almost always be app/assets/
-set :asset_path, "path/to/assets/target/directory"
+# This is an array that contains all of your asset paths. They must be unique
+# (so you can't have multiple asset paths that point to the same target path)
+set :monorepo_asset_paths, [
+    {
+        # This is the path within the deployment target where you want to deploy the
+        # assets directory. For a Rails app, this will almost always be app/assets/
+        asset_path: "path/to/assets/target/directory",
+        
+        # This is the name of the top level directory in the monorepo where the assets
+        # are located.
+        asset_source: "assets"
+    }
+]
 
-# This is the name of the top level directory in the monorepo where the assets
-# are located.
-set :asset_source, "assets"
 ```
 
 Next, in your `deploy.rb` file, specify where in your pipeline you want the

@@ -22,39 +22,47 @@ require 'pathname'
 # specified location.
 #
 # Configuration:
-# In your deploy/<stage>.rb file, you will need to specify two variables:
-#   - :asset_path - The location within the deployment directory where the
-#                   assets should be placed. Relative to the deployment working
-#                   directory.
-#   - :asset_source - The location of the top-level asset folder in the
-#                     monorepo. Relative to the top level of the monorepo (i.e.
-#                     the directory that would be used as a deployment if
-#                     :repo_tree was not specified).
+# In your deploy/<stage>.rb file, you will need to specify a variable
+# `:monorepo_asset_paths` that contains an array of objects. Each of
+# these objects must contain the following variables:
+#   - asset_path - The location within the deployment directory where the
+#                  assets should be placed. Relative to the deployment working
+#                  directory.
+#   - asset_source - The location of the top-level asset folder in the
+#                    monorepo. Relative to the top level of the monorepo (i.e.
+#                    the directory that would be used as a deployment if
+#                    :repo_tree was not specified).
 #
 # In the above example, you would specify:
 #
-# set :asset_path, "src/assets"
-# set :asset_source, "assets"
+# set :monorepo_asset_paths, [
+#   {
+#     asset_path: "src/assets",
+#     asset_source: "assets"
+#   }
+# ]
 #
 namespace :monorepo do
   desc "Import assets from a top-level monorepo directory"
   task :import_assets do
    on roles(:all) do |host|
       within repo_path do
-        final_asset_location = "#{release_path}/#{fetch(:asset_path)}"
-        asset_stat_result = capture "stat", "-t", "#{final_asset_location}"
-        asset_stat_result = asset_stat_result.split(" ")
-        if asset_stat_result[0] == "#{final_asset_location}"
-          info "Removing existing asset directory #{final_asset_location}..."
-          execute "rm", "-rf", "#{final_asset_location}"
-        end
+        fetch(:monorepo_asset_paths).each { |asset|
+          final_asset_location = "#{release_path}/#{asset[:asset_path]}"
+          asset_stat_result = capture "stat", "-t", "#{final_asset_location}"
+          asset_stat_result = asset_stat_result.split(" ")
+          if asset_stat_result[0] == "#{final_asset_location}"
+            info "Removing existing asset directory #{final_asset_location}..."
+            execute "rm", "-rf", "#{final_asset_location}"
+          end
 
-        source_dir = Pathname.new(final_asset_location).parent.to_s
-        info "Importing assets to #{source_dir}/#{fetch(:asset_source)}"
-        execute "GIT_WORK_TREE=#{source_dir}", :git, "checkout", "#{fetch(:branch)}", "--", "#{fetch(:asset_source)}"
+          source_dir = Pathname.new(final_asset_location).parent.to_s
+          info "Importing assets to #{source_dir}/#{asset[:asset_source]}"
+          execute "GIT_WORK_TREE=#{source_dir}", :git, "checkout", "#{fetch(:branch)}", "--", "#{asset[:asset_source]}"
 
-        info "Moving asset directory #{source_dir}/#{fetch(:asset_source)} to #{final_asset_location}..."
-        execute :mv, "#{source_dir}/#{fetch(:asset_source)}", "#{final_asset_location}"
+          info "Moving asset directory #{source_dir}/#{asset[:asset_source]} to #{final_asset_location}..."
+          execute :mv, "#{source_dir}/#{asset[:asset_source]}", "#{final_asset_location}"
+        }
       end
     end
   end
